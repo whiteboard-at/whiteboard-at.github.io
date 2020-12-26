@@ -31,6 +31,7 @@
             height: 100%;
             width: auto;
         }
+
         .canvasDiv-top {
             width: 100%;
             float: left;
@@ -252,6 +253,7 @@
             constructor(container, options) {
 
                 /* some sort of options validation */
+                this.options = options;
 
                 /* first setup the UI elements */
                 this.container = container;
@@ -305,7 +307,6 @@
                     erasor => this.pickPen(erasor.obj)
                 ));
 
-
                 this.tools.addItem(new ToolBarItem(
                     "undo",
                     true,
@@ -339,21 +340,36 @@
                     }
                 ))
 
-                this.pen = new Pen(options.penColors[0], options.penSizes[options.penSizes.length - 1], false)
+                this.tools.addItem(new ToolBarItem(
+                    "record",
+                    false,
+                    { left: 'R', top: 'R' },
+                    "red",
+                    undefined,
+                    x => this.startRecording()
+                ))
+
+                this.tools.addItem(new ToolBarItem(
+                    "stop",
+                    false,
+                    { left: 'S', top: 'S' },
+                    "red",
+                    undefined,
+                    x => this.stopRecording()
+                ))
+
+                this.tools.addItem(new ToolBarItem(
+                    "play",
+                    false,
+                    { left: 'P', top: 'P' },
+                    "red",
+                    undefined,
+                    x => this.playRecording()
+                ))
+
                 this.ctx = this.canvas.getContext("2d");
-                this.lines = [];
-                this.removedLines = [];
-                this.pathId = 0;
-                this.curPath = undefined;
-                this.offsetX = 0;
-                this.offsetY = 0;
-                this.scale = 1;
-                this.gridCellSize = 50;
-                this.lastBatch = 0;
-                this.DC = {};
-                this.background = options.background;
-                this.resize();
-                this.tools.draw();
+
+                this.reset();
 
                 this.canvas.addEventListener('mouseleave', e => this.mouseExitted(e));
                 this.canvas.addEventListener('mouseenter', e => this.mouseEntered(e));
@@ -371,6 +387,52 @@
                 this.showDBG();
 
                 this.resize();
+
+                this.filmStart;
+                this.film = [];
+                this.filming = false;
+            }
+
+            reset() {
+                this.pen = new Pen(this.options.penColors[0], this.options.penSizes[this.options.penSizes.length - 1], false)
+                this.lines = [];
+                this.removedLines = [];
+                this.pathId = 0;
+                this.curPath = undefined;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.scale = 1;
+                this.gridCellSize = 50;
+                this.lastBatch = 0;
+                this.DC = {};
+                this.background = this.options.background;
+                this.resize();
+                this.tools.draw();
+            }
+
+            gettime() { return new Date().getTime(); }
+
+            stopRecording() {
+                this.filming = false;
+                console.log(this.film)
+            }
+
+            startRecording() {
+                this.filming = true;
+                this.filmStart = this.gettime();
+            }
+
+            playRecording() {
+                this.reset();
+                this.showFrame(0)
+            }
+            showFrame(i) {
+                this[this.film[i].type](...this.film[i].args);
+                i++;
+                if(i >= this.film.length) {
+                    return;
+                }
+                setTimeout(i => this.showFrame(i), this.film[i].time - this.film[i-1].time, i);
             }
 
             reposition(pos) {
@@ -422,7 +484,7 @@
                 e.preventDefault();
                 if (numToch == 1) {
                     for (let i = 0; i < e.changedTouches.length; i++) {
-                        t = e.changedTouches[0];
+                        let t = e.changedTouches[0];
                         if (t.identifier == this.DC.curTouch)
                             this.pointerMoved({ x: t.pageX, y: t.pageY });
                     }
@@ -749,6 +811,14 @@
             changePosition(newPos) {
                 this.position = newPos;
             }
+
+            offset(el) {
+                var rect = el.getBoundingClientRect(),
+                    scrollLeft = window.pageXOffset || document.documentElement.scrollLeft,
+                    scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                return { top: rect.top + scrollTop, left: rect.left + scrollLeft }
+            }
+
             showFor(pen) {
                 if (this.firstTime) {
                     this.firstTime = false;
@@ -772,13 +842,14 @@
                     cntr.appendChild(szdot);
                 })
 
-                let r = pen.ele.getBoundingClientRect()
+                let r = this.offset(pen.ele)
+                let br = pen.ele.getBoundingClientRect();
                 if (this.position == "left") {
-                    pp.style.top = Math.round(r.top) + "px";
-                    pp.style.left = Math.round(r.left + r.width + 5) + "px";
+                    pp.style.top = r.top + "px";
+                    pp.style.left = Math.round(br.left + br.width + 5) + "px";
                 } else {
                     pp.style.top = Math.round(r.top + 45) + "px";
-                    pp.style.left = Math.round(r.left) + "px";
+                    pp.style.left = r.left + "px";
                 }
                 this.pp = pp;
                 document.body.appendChild(pp)
@@ -792,6 +863,7 @@
                 this.hide();
             }
         }
+
 
         let canvases = [];
         window.onload = function () {
@@ -871,15 +943,15 @@
 </head>
 
 <body>
-    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px green"></div>
     <br />
     <hr />
     <br />
-    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px green"></div>
     <br />
     <hr />
     <br />
-    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px green"></div>
     <div id="dbg" style="top: 0; left: 0px; position: absolute;"></div>
 </body>
 
