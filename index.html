@@ -3,8 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>Whiteboard</title>
     <style>
         body {
@@ -14,42 +13,42 @@
             padding: 0px;
             position: relative;
         }
-
+        
         .controls-container-left {
             float: left;
             height: 100%;
             position: relative;
         }
-
+        
         .controls-container-top {
             width: 100%;
             position: relative;
         }
-
+        
         .canvasDiv-left {
             overflow: hidden;
             height: 100%;
             width: auto;
         }
-
+        
         .canvasDiv-top {
             width: 100%;
             float: left;
             height: auto;
             background-color: green;
         }
-
+        
         .controls-left {
             position: absolute;
             top: 50%;
             -ms-transform: translateY(-50%);
             transform: translateY(-50%);
         }
-
+        
         .controls-top {
             margin: 0 auto;
         }
-
+        
         .control-left {
             padding: 2px;
             padding-left: 0px;
@@ -58,13 +57,13 @@
             line-height: 0.8;
             padding: 3px 0px;
         }
-
+        
         .control-top {
             height: 35px;
             padding: 0px 5px;
             font-size: 36px;
         }
-
+        
         .control-icon {
             -moz-user-select: none;
             -khtml-user-select: none;
@@ -73,30 +72,30 @@
             user-select: none;
             cursor: pointer;
         }
-
+        
         .ctrl-icon:hover {
             padding-left: 10px;
         }
-
+        
         .dot {
             border-radius: 50%;
             margin: 3px;
             border: solid 3px transparent;
         }
-
+        
         .dot:hover {
             border: solid 3px black;
         }
-
+        
         .dot-left {
             clear: both;
             display: block;
         }
-
+        
         .dot-top {
             float: left;
         }
-
+        
         .pen-settings {
             top: 0px;
             left: 0px;
@@ -107,7 +106,6 @@
         }
     </style>
     <script>
-
         class Pen {
             constructor(color, size, erasor) {
                 this.color = color;
@@ -281,9 +279,10 @@
                 /* add pens */
                 options.penColors.forEach(color => {
                     this.tools.addItem(new ToolBarItem(
-                        "pen",
-                        { left: `pen-left-${color}.png`, top: `pen-top-${color}.png` },
-                        {},
+                        "pen", {
+                            left: `pen-left-${color}.png`,
+                            top: `pen-top-${color}.png`
+                        }, {},
                         color,
                         new Pen(color, options.penSizes[options.penSizes.length - 1], false),
                         pen => {
@@ -300,8 +299,7 @@
                 /* add erasor */
                 this.tools.addItem(new ToolBarItem(
                     "erasor",
-                    true,
-                    {},
+                    true, {},
                     "black",
                     new Pen(options.background, 30, true),
                     erasor => this.pickPen(erasor.obj)
@@ -309,8 +307,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "undo",
-                    true,
-                    { left: "⮌", top: "⮌" },
+                    true, {
+                        left: "⮌",
+                        top: "⮌"
+                    },
                     "black",
                     undefined,
                     x => this.undo()
@@ -318,8 +318,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "redo",
-                    true,
-                    { left: "⮎", top: "⮎" },
+                    true, {
+                        left: "⮎",
+                        top: "⮎"
+                    },
                     "black",
                     undefined,
                     x => this.redo()
@@ -327,8 +329,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "movetoolbar",
-                    false,
-                    { left: "&#11016;", top: "&#11019;" },
+                    false, {
+                        left: "&#11016;",
+                        top: "&#11019;"
+                    },
                     "black",
                     undefined,
                     x => {
@@ -342,8 +346,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "record",
-                    false,
-                    { left: 'R', top: 'R' },
+                    false, {
+                        left: 'R',
+                        top: 'R'
+                    },
                     "red",
                     undefined,
                     x => this.startRecording()
@@ -351,8 +357,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "stop",
-                    false,
-                    { left: 'S', top: 'S' },
+                    false, {
+                        left: 'S',
+                        top: 'S'
+                    },
                     "red",
                     undefined,
                     x => this.stopRecording()
@@ -360,8 +368,10 @@
 
                 this.tools.addItem(new ToolBarItem(
                     "play",
-                    false,
-                    { left: 'P', top: 'P' },
+                    false, {
+                        left: 'P',
+                        top: 'P'
+                    },
                     "red",
                     undefined,
                     x => this.playRecording()
@@ -376,7 +386,10 @@
                 this.canvas.addEventListener('mousemove', e => this.mouseMoved(e));
                 this.canvas.addEventListener('mousedown', e => this.mouseDown(e));
                 this.canvas.addEventListener('mouseup', e => this.mouseUp(e));
-                this.canvas.addEventListener('wheel', e => { this.zoomX(-e.deltaY, new Point(e.x, e.y)); e.preventDefault(); });
+                this.canvas.addEventListener('wheel', e => {
+                    this.zoomX(-e.deltaY, new Point(e.x, e.y));
+                    e.preventDefault();
+                });
 
                 this.canvas.addEventListener('touchmove', e => this.touchMove(e), false);
                 this.canvas.addEventListener('touchstart', e => this.touchStart(e));
@@ -410,7 +423,9 @@
                 this.tools.draw();
             }
 
-            gettime() { return new Date().getTime(); }
+            gettime() {
+                return new Date().getTime();
+            }
 
             stopRecording() {
                 this.filming = false;
@@ -429,10 +444,10 @@
             showFrame(i) {
                 this[this.film[i].type](...this.film[i].args);
                 i++;
-                if(i >= this.film.length) {
+                if (i >= this.film.length) {
                     return;
                 }
-                setTimeout(i => this.showFrame(i), this.film[i].time - this.film[i-1].time, i);
+                setTimeout(i => this.showFrame(i), this.film[i].time - this.film[i - 1].time, i);
             }
 
             reposition(pos) {
@@ -444,7 +459,13 @@
 
             mutate(e) {
                 let r = this.canvas.getBoundingClientRect();
-                return { x: e.x - r.left, y: e.y - r.top, button: e.button, buttons: e.buttons, ctrlKey: e.ctrlKey };
+                return {
+                    x: e.x - r.left,
+                    y: e.y - r.top,
+                    button: e.button,
+                    buttons: e.buttons,
+                    ctrlKey: e.ctrlKey
+                };
             }
 
             mouseEntered(e) {
@@ -469,13 +490,19 @@
                         this.DC.dragX = e.x
                         this.DC.dragY = e.y
                     }
-                    this.pointerDown({ x: e.x, y: e.y })
+                    this.pointerDown({
+                        x: e.x,
+                        y: e.y
+                    })
                 }
             }
             mouseMoved(e) {
                 e = this.mutate(e)
                 if (e.buttons && e.button == 0) {
-                    this.pointerMoved({ x: e.x, y: e.y })
+                    this.pointerMoved({
+                        x: e.x,
+                        y: e.y
+                    })
                 }
             }
 
@@ -486,7 +513,10 @@
                     for (let i = 0; i < e.changedTouches.length; i++) {
                         let t = e.changedTouches[0];
                         if (t.identifier == this.DC.curTouch)
-                            this.pointerMoved({ x: t.pageX, y: t.pageY });
+                            this.pointerMoved({
+                                x: t.pageX,
+                                y: t.pageY
+                            });
                     }
                 } else if (numToch == 2) {
                     let p1 = new Point(e.touches[0].pageX, e.touches[0].pageY)
@@ -505,7 +535,10 @@
                 } else if (numToch > 2) {
                     for (let i = 0; i < e.changedTouches.length; i++) {
                         if (e.changedTouches[i].identifier == this.DC.curTouch) {
-                            this.pointerMoved({ x: e.changedTouches[i].pageX, y: e.changedTouches[i].pageY })
+                            this.pointerMoved({
+                                x: e.changedTouches[i].pageX,
+                                y: e.changedTouches[i].pageY
+                            })
                         }
                     }
                 }
@@ -516,7 +549,10 @@
                     // draw
                     let touch = e.changedTouches[0];
                     this.DC.curTouch = touch.identifier;
-                    this.pointerDown({ x: touch.pageX, y: touch.pageY })
+                    this.pointerDown({
+                        x: touch.pageX,
+                        y: touch.pageY
+                    })
                 } else if (numToch == 2) {
                     // pinch and zoom
                     this.DC.zoomPivotX = 1;
@@ -799,6 +835,10 @@
                 this.DC.dragY = e.y
             }
 
+            setPensize(sz) {
+                this.pen.size = sz;
+            }
+
         }
 
         class PenSizePicker {
@@ -816,7 +856,10 @@
                 var rect = el.getBoundingClientRect(),
                     scrollLeft = window.pageXOffset || document.documentElement.scrollLeft,
                     scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                return { top: rect.top + scrollTop, left: rect.left + scrollLeft }
+                return {
+                    top: rect.top + scrollTop,
+                    left: rect.left + scrollLeft
+                }
             }
 
             showFor(pen) {
@@ -859,14 +902,42 @@
                     this.pp.remove()
             }
             penSizePicked(sz) {
-                this.canvas.pen.size = sz;
+                this.canvas.setPensize(sz);
                 this.hide();
             }
         }
 
+        function instrument(klass, arr, pre, post) {
+            arr.forEach(func => {
+
+                let nfunc = `__${func}__instrumented`;
+                let pre_f = `__pre__${func}__instrumented`;
+                let post_f = `__post__${func}__instrumented`;
+
+                klass.prototype[pre_f] = pre
+                klass.prototype[nfunc] = klass.prototype[func]
+                klass.prototype[post_f] = post
+
+                klass.prototype[func] = function() {
+                    this[pre_f] && this[pre_f](func, arguments);
+                    this[nfunc](...arguments);
+                    this[post_f] && this[post_f](func, arguments);
+                }
+            });
+        }
+
+        instrument(Canvas, ['pointerUp', 'pointerDown', 'pointerMoved', 'pickPen', 'zoomX', 'setPensize', 'undo', 'redo'], function(name, args) {
+            if (this.filming) {
+                this.film.push({
+                    type: name,
+                    args: args,
+                    time: this.gettime() - this.filmStart
+                })
+            }
+        });
 
         let canvases = [];
-        window.onload = function () {
+        window.onload = function() {
             let wboards = document.getElementsByClassName('whiteboard');
             for (let i = 0; i < wboards.length; i++) {
                 const wboard = wboards[i];
@@ -899,10 +970,19 @@
 
         function zup(e) {
             if (e.key == 'z') {
-                canvas.zoomX(1, { x: 50, y: 50 });
+                canvas.zoomX(1, {
+                    x: 50,
+                    y: 50
+                });
             } else if (e.key == 'd') {
-                canvas.beginPath({ x: 0, y: 0 })
-                canvas.lineTo({ x: 100, y: 100 })
+                canvas.beginPath({
+                    x: 0,
+                    y: 0
+                })
+                canvas.lineTo({
+                    x: 100,
+                    y: 100
+                })
                 canvas.endPath()
             } else if (e.key == 't') {
                 test();
