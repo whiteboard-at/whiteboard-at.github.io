@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Whiteboard</title>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            position: relative;
+        }
+
+        #controls {
+            z-index: 200;
+            top: 0px;
+            padding: 0px;
+            border-radius: 0px 5px 5px 0px;
+        }
+
+        .control-left {
+            padding: 5px;
+            padding-left: 0px;
+            width: 45px;
+            font-size: 36px;
+            display: block;
+            line-height: 0.8;
+        }
+
+        .control-top {
+            height: 35px;
+            padding: 0px 5px;
+            font-size: 36px;
+        }
+
+        .control-icon {
+            -moz-user-select: none;
+            -khtml-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .ctrl-icon:hover {
+            padding-left: 10px;
+        }
+
+        .dot {
+            border-radius: 50%;
+            margin: 3px;
+            border: solid 3px transparent;
+        }
+
+        .dot:hover {
+            border: solid 3px black;
+        }
+
+        .dot-left {
+            clear: both;
+            display: block;
+        }
+
+        .dot-top {
+            float: left;
+        }
+
+        .pen-settings {
+            top: 0px;
+            left: 0px;
+            padding-top: 10;
+            text-align: center;
+            vertical-align: center;
+            position: absolute;
+        }
+    </style>
+    <script>
+
+        class Pen {
+            constructor(color, size, erasor) {
+                this.color = color;
+                this.size = size;
+                this.erasor = erasor;
+            }
+            setSize(newSize) {
+                this.size = newSize;
+            }
+            isErasor() {
+                return this.erasor ? true : false;
+            }
+        }
+
+        class Point {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+        }
+
+        class Line {
+            constructor(size, color, startPoint, pathid) {
+                this.size = size;
+                this.color = color;
+                this.pts = [];
+                this.pathid = pathid;
+                this.addPoint(startPoint)
+            }
+            addPoint(pt) {
+                this.pts.push(pt)
+                if (this.minx == undefined || this.minx > pt.x) {
+                    this.minx = pt.x
+                }
+                if (this.miny == undefined || this.miny > pt.y) {
+                    this.miny = pt.y
+                }
+                if (this.maxx == undefined || this.maxx < pt.x) {
+                    this.maxx = pt.x
+                }
+                if (this.maxy == undefined || this.maxy < pt.y) {
+                    this.maxy = pt.y
+                }
+            }
+        }
+
+        class ToolBarItem {
+            constructor(name, imgs, chars, color, obj, onSelect, selected) {
+                this.name = name;
+                this.imgs = imgs;
+                this.chars = chars;
+                this.color = color;
+                this.obj = obj;
+                this.class = "";
+                this.selected = selected ? true : false;
+                this.onSelect = onSelect;
+            }
+        }
+
+        class ToolBar {
+
+            constructor(position, parentContainer, options) {
+                this.items = [];
+                this.itemsMap = {};
+                this.parentContainer = parentContainer;
+                this.position = position;
+                this.rendered = false;
+                this.options = options;
+                this.container = document.createElement('div');
+                this.parentContainer.appendChild(this.container);
+            }
+
+            addItem(item) {
+                this.items.push(item)
+            }
+
+            draw() {
+                this.container.innerHTML = "";
+                this.items.forEach(i => this.drawItem(i))
+                console.log(this.container.getBoundingClientRect())
+                if (this.position == "top") {
+                    this.container.style.left = `${Math.round((this.parentContainer.getBoundingClientRect().width - this.container.getBoundingClientRect().width) / 2)}px`;
+                    this.container.style.top = 0;
+                } else {
+                    this.container.style.top = `${Math.round((this.parentContainer.offsetHeight - this.container.offsetHeight) / 2)}px`;
+                    this.container.style.left = 0;
+                }
+            }
+
+            drawItem(item) {
+                let ele = document.createElement(item.imgs ? 'img' : 'span');
+                ele.classList = `control-${this.position}`;
+                item.id = `${item.name}-${item.color}`;
+                item.ele = ele;
+                this.itemsMap[item.id] = item;
+
+                if (item.imgs) {
+                    ele.src = `${item.name}-${this.position}-${item.color}.png`;
+                } else if (item.chars && item.chars[this.position]) {
+                    ele.classList += ` control-icon ${item.class}`;
+                    ele.style.color = item.color;
+                    ele.innerHTML = item.chars[this.position];
+                }
+                ele.addEventListener('click', e => this.itemSelected(item.id, e.target));
+                this.container.appendChild(ele);
+                if (item.selected) {
+                    this.itemSelected(item.id, ele);
+                }
+            }
+
+            itemSelected(id, item) {
+                this.itemsMap[id].onSelect(this.itemsMap[id])
+                if (this.position == "left") {
+                    item.style.width = this.options.penExtendedWidth;
+                    if (this.lastSelectedItemId && this.lastSelectedItemId) {
+                        this.lastSelectedItemId.style.width = this.options.penWidth;
+                    }
+                } else {
+                    item.style.height = this.options.penExtendedLength;
+                    if (this.lastSelectedItemId && this.lastSelectedItemId) {
+                        this.lastSelectedItemId.style.height = this.options.penLength;
+                    }
+                }
+                this.lastSelectedItemId = item;
+            }
+
+            reposition(position) {
+                this.position = position;
+                this.draw();
+            }
+        }
+
+        /* public class */
+        class Canvas {
+
+            /*
+             * args:
+             *   canvas: a div element
+             *   options: options for canvas
+             *      background : html color-string
+             *      penColors : array of html color-strings
+             *      penSizes : array of pen-sizes
+             *      toolBarPosition : left | right (string)
+             */
+            constructor(container, options) {
+
+                /* some sort of options validation */
+
+                /* first setup the UI elements */
+                this.container = container;
+                this.lcontainer = document.createElement('div');
+                this.lcontainer.style.float = "left";
+                this.rcontainer = document.createElement('div');
+                this.rcontainer.style.overflow = "hidden";
+                this.rcontainer.style.height = "100%"
+                this.rcontainer.style.width = "auto"
+                this.canvas = document.createElement('canvas');
+                this.rcontainer.appendChild(this.canvas);
+                container.appendChild(this.lcontainer);
+                container.appendChild(this.rcontainer);
+                this.container = this.rcontainer;
+
+                /*
+                 * setup tools 
+                 * TODO: provide options to customize
+                 */
+                this.tools = new ToolBar(options.toolBarPosition, this.lcontainer, {
+                    penLength: "35px",
+                    penExtendedLength: "45px",
+                    penWidth: "45px",
+                    penExtendedWidth: "55px"
+                })
+
+                /* add pens */
+                options.penColors.forEach(color => {
+                    this.tools.addItem(new ToolBarItem(
+                        "pen",
+                        { left: `pen-left-${color}.png`, top: `pen-top-${color}.png` },
+                        {},
+                        color,
+                        new Pen(color, options.penSizes[options.penSizes.length - 1], false),
+                        pen => {
+                            this.pickPen(pen.obj);
+                            this.psPicker.showFor(pen);
+                        },
+                        color == "black" ? true : false
+                    ));
+                });
+
+                /* pensize picker */
+                this.psPicker = new PenSizePicker(options.penSizes, options.toolBarPosition, this);
+
+                /* add erasor */
+                this.tools.addItem(new ToolBarItem(
+                    "erasor",
+                    true,
+                    {},
+                    "black",
+                    new Pen(options.background, 30, true),
+                    erasor => this.pickPen(erasor.obj)
+                ));
+
+
+                this.tools.addItem(new ToolBarItem(
+                    "undo",
+                    true,
+                    { left: "⮌", top: "⮌" },
+                    "black",
+                    undefined,
+                    x => this.undo()
+                ))
+
+                this.tools.addItem(new ToolBarItem(
+                    "redo",
+                    true,
+                    { left: "⮎", top: "⮎" },
+                    "black",
+                    undefined,
+                    x => this.redo()
+                ))
+
+                this.tools.addItem(new ToolBarItem(
+                    "movetoolbar",
+                    false,
+                    { left: "&#11016;", top: "&#11019;" },
+                    "black",
+                    undefined,
+                    x => {
+                        let pos = this.tools.position == "top" ? "left" : "top";
+                        this.tools.reposition(pos);
+                        this.psPicker.changePosition(pos)
+                        this.psPicker.hide()
+                    }
+                ))
+
+                this.pen = new Pen(options.penColors[0], options.penSizes[options.penSizes.length - 1], false)
+                this.ctx = this.canvas.getContext("2d");
+                this.lines = [];
+                this.removedLines = [];
+                this.pathId = 0;
+                this.curPath = undefined;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.scale = 1;
+                this.gridCellSize = 50;
+                this.lastBatch = 0;
+                this.DC = {};
+                this.background = options.background;
+                this.resize();
+                this.tools.draw();
+
+                this.canvas.addEventListener('mouseleave', e => this.mouseExitted(e));
+                this.canvas.addEventListener('mouseenter', e => this.mouseEntered(e));
+                this.canvas.addEventListener('mousemove', e => this.mouseMoved(e));
+                this.canvas.addEventListener('mousedown', e => this.mouseDown(e));
+                this.canvas.addEventListener('mouseup', e => this.mouseUp(e));
+                this.canvas.addEventListener('wheel', e => { this.zoomX(-e.deltaY, new Point(e.x, e.y)); e.preventDefault(); });
+
+                this.canvas.addEventListener('touchmove', e => this.touchMove(e), false);
+                this.canvas.addEventListener('touchstart', e => this.touchStart(e));
+                this.canvas.addEventListener('touchend', e => this.touchEnd(e));
+
+                this.container.addEventListener('resize', e => this.resize());
+
+                this.showDBG();
+
+                this.resize();
+            }
+
+            mutate(e) {
+                let r = this.canvas.getBoundingClientRect();
+                return {x: e.x - r.left, y: e.y - r.top, button: e.button, buttons: e.buttons, ctrlKey: e.ctrlKey};
+            }
+
+            mouseEntered(e) {
+                // TODO: what?
+            }
+
+            mouseExitted(e) {
+                //this.endPath();
+            }
+
+            mouseUp(e) {
+                e = this.mutate(e)
+                if (e.button == 0) {
+                    this.pointerUp({});
+                }
+            }
+            mouseDown(e) {
+                e = this.mutate(e)
+                if (e.buttons && e.button == 0) {
+                    this.DC.dragging = e.ctrlKey
+                    if (e.ctrlKey) {
+                        this.DC.dragX = e.x
+                        this.DC.dragY = e.y
+                    }
+                    this.pointerDown({ x: e.x, y: e.y })
+                }
+            }
+            mouseMoved(e) {
+                e = this.mutate(e)
+                if (e.buttons && e.button == 0) {
+                    this.pointerMoved({ x: e.x, y: e.y })
+                }
+            }
+
+            touchMove(e) {
+                let numToch = e.touches.length;
+                e.preventDefault();
+                if (numToch == 1) {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        t = e.changedTouches[0];
+                        if (t.identifier == this.DC.curTouch)
+                            this.pointerMoved({ x: t.pageX, y: t.pageY });
+                    }
+                } else if (numToch == 2) {
+                    let p1 = new Point(e.touches[0].pageX, e.touches[0].pageY)
+                    let p2 = new Point(e.touches[1].pageX, e.touches[1].pageY)
+                    let dist = this.pointDist(p1, p2)
+                    if (this.DC.lastZoomDist) {
+                        this.zoomX(
+                            dist - this.DC.lastZoomDist,
+                            new Point(
+                                Math.min(p1.x, p2.x) + Math.abs(p1.x - p2.x),
+                                Math.min(p1.y, p2.y) + Math.abs(p1.y - p2.y)
+                            )
+                        )
+                    }
+                    this.DC.lastZoomDist = dist
+                } else if (numToch > 2) {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier == this.DC.curTouch) {
+                            this.pointerMoved({ x: e.changedTouches[i].pageX, y: e.changedTouches[i].pageY })
+                        }
+                    }
+                }
+            }
+            touchStart(e) {
+                let numToch = e.touches.length;
+                if (numToch == 1) {
+                    // draw
+                    let touch = e.changedTouches[0];
+                    this.DC.curTouch = touch.identifier;
+                    this.pointerDown({ x: touch.pageX, y: touch.pageY })
+                } else if (numToch == 2) {
+                    // pinch and zoom
+                    this.DC.zoomPivotX = 1;
+                    this.DC.zoomPivotY;
+                } else if (numToch > 2) {
+                    // drag
+                    this.DC.dragging = true;
+                    this.DC.touchDrag = true;
+                    this.DC.curTouch = e.changedTouches[0].identifier;
+                    this.DC.dragX = e.changedTouches[0].pageX;
+                    this.DC.dragY = e.changedTouches[0].pageY;
+                }
+            }
+            touchEnd(e) {
+                let numToch = e.touches.length;
+                this.DC.zooming = (numToch == 2);
+                this.pointerUp();
+                if (this.DC.touchDrag) {
+                    this.DC.dragging = this.DC.touchDrag = (numToch != 0);
+                }
+            }
+
+            pickPen(pen) {
+                this.pen = pen;
+                this.changeCursorIfNeeded();
+            }
+
+            redraw(showGrid) {
+                this.lastBatch = 0;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+                this.ctx.fillStyle = this.background;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height)
+                if (showGrid) {
+                    this.showGrid();
+                }
+                this.lines.forEach(x => this.drawLine(x));
+                this.showDBG();
+            }
+
+            drawLine(l) {
+                if (!this.skipLine(l)) {
+                    return;
+                }
+                this.lastBatch++;
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = l.color;
+                this.ctx.lineWidth = l.size;
+                this.ctx.lineJoin = "round";
+                let i = 0;
+                for (i = 0; i < l.pts.length; i++) {
+                    let pt = l.pts[i];
+                    if (!i) {
+                        this.ctx.moveTo(Math.round(pt.x * this.scale - this.offsetX), Math.round(pt.y * this.scale - this.offsetY))
+                    } else {
+                        this.ctx.lineTo(Math.round(pt.x * this.scale - this.offsetX), Math.round(pt.y * this.scale - this.offsetY))
+                    }
+                }
+                if (i == 1) {
+                    this.ctx.lineWidth = 0;
+                    let pt = l.pts[0];
+                    this.ctx.fillStyle = l.color;
+                    this.ctx.lineWidth = l.size;
+                    this.ctx.arc(pt.x * this.scale - this.offsetX, pt.y * this.scale - this.offsetY, this.pen.size / 2.0, 0, Math.PI * 2)
+                    this.ctx.fill();
+                } else {
+                    this.ctx.stroke();
+                }
+            }
+
+            showDBG() {
+                g('dbg').innerHTML = `
+                    offsetX: <b>${this.offsetX}</b> &nbsp; 
+                    offsetY: <b>${this.offsetY}</b> &nbsp; 
+                    scale: <b>${this.scale}</b>
+                    lastBatch: <b>${this.lastBatch}</b>
+                `;
+            }
+
+            skipLine(l) {
+                let
+                    minx = l.minx * this.scale - this.offsetX,
+                    maxx = l.maxx * this.scale - this.offsetX,
+                    miny = l.miny * this.scale - this.offsetY,
+                    maxy = l.maxy * this.scale - this.offsetY;
+                return (
+                    (
+                        (maxx >= 0) &&
+                        (minx <= this.canvas.width)
+                    ) &&
+                    (
+                        (miny <= this.canvas.height) &&
+                        (maxy >= 0)
+                    )
+                )
+            }
+
+            /* new path */
+            beginPath(pt) {
+                this.ctx.beginPath();
+                this.ctx.lineCap = "round"
+                this.ctx.lineJoin = "round"
+                this.ctx.moveTo(pt.x, pt.y)
+                pt.x += this.offsetX
+                pt.y += this.offsetY
+                pt.x /= this.scale
+                pt.y /= this.scale
+                this.curPath = new Line(this.pen.size, this.pen.color, pt, this.pathId++)
+            }
+
+            endPath() {
+                if(!this.curPath) return;
+                if (this.curPath.pts.length == 1) {
+                    this.drawLine(this.curPath)
+                }
+                this.lines.push(this.curPath)
+                this.curPath = null
+            }
+
+            lineTo(pt) {
+                if(this.curPath == null) {
+                    return;
+                }
+                this.ctx.lineWidth = this.getSize(this.pen, pt)
+                this.ctx.strokeStyle = this.pen.color;
+                this.ctx.lineJoin = "round";
+                this.ctx.lineTo(pt.x, pt.y)
+                pt.x += this.offsetX
+                pt.y += this.offsetY
+                pt.x /= this.scale
+                pt.y /= this.scale
+                this.curPath.addPoint(pt)
+
+                this.ctx.stroke()
+                if (this.pen.isErasor()) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo((pt.x * this.scale - this.offsetX), (pt.y * this.scale - this.offsetY));
+                    this.lines.push(this.curPath);
+                    this.curPath = new Line(this.pen.size, this.pen.color, pt)
+                }
+            }
+
+            pointDist(p1, p2) {
+                return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2))
+            }
+
+            getUrl() {
+                let u = new URL(document.URL)
+                return `${u.protocol}//${u.host}`
+            }
+
+            cursors = {
+                true: [ //for erasor
+                    `url('${this.getUrl()}/cursor-small.png') 15 15, auto`,
+                    `url('${this.getUrl()}/cursor-medium.png') 30 30, auto`,
+                    `url('${this.getUrl()}/cursor-large.png') 60 60, auto`
+                ],
+                false: ["auto"]
+            }
+
+            changeCursorIfNeeded() {
+                let c = this.cursors[this.pen.isErasor()][Math.floor(this.pen.size / 31)];
+                if (!c) {
+                    c = this.cursors[this.pen.isErasor()][this.cursors[this.pen.isErasor()].length - 1];
+                }
+                return this.canvas.style.cursor = c;
+            }
+
+            getSize(pen, pt) {
+                if (pen.isErasor()) {
+                    let drawSpeed = this.pointDist(this.curPath.pts[this.curPath.pts.length - 1], pt) / 5;
+                    if (this.lastDrawSpeed) {
+                        pen.size = Math.max(5, (drawSpeed - this.lastDrawSpeed) + pen.size)
+                        this.changeCursorIfNeeded();
+                    }
+                    this.lastDrawSpeed = drawSpeed;
+                }
+                return pen.size;
+            }
+
+            resize() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+                this.canvas.width = this.container.clientWidth;
+                this.canvas.height = this.container.clientHeight;
+                this.redraw();
+            }
+
+            undo() {
+                let x = this.lines.pop();
+                if (x) {
+                    let pid = x.pathid;
+                    do {
+                        this.removedLines.push(x)
+                        x = this.lines.pop();
+                    } while (x && x.pathid == pid);
+                    if (x) {
+                        this.lines.push(x)
+                    }
+                    this.redraw();
+                }
+            }
+
+            redo() {
+                let x = this.removedLines.pop();
+                if (x) {
+                    let pid = x.pathid;
+                    do {
+                        this.lines.push(x);
+                        this.drawLine(x)
+                        x = this.removedLines.pop();
+                    } while (x && x.pathid == pid);
+                    if (x) {
+                        this.removedLines.push(x)
+                    }
+                }
+            }
+
+            move(curX, curY) {
+                if (!isNaN(curX)) {
+                    this.offsetX -= curX
+                }
+                if (!isNaN(curY)) {
+                    this.offsetY -= curY
+                }
+                this.redraw(true);
+            }
+
+            showGrid() {
+                this.ctx.strokeStyle = "lightgray"
+                this.ctx.lineWidth = 1;
+                /* vertical lines */
+                for (let i = (this.gridCellSize - this.offsetX) % this.gridCellSize; i < this.canvas.width; i += this.gridCellSize) {
+                    this.ctx.moveTo(i, 0)
+                    this.ctx.lineTo(i, this.canvas.height)
+                }
+
+                /* horizontal lines */
+                for (let i = (this.gridCellSize - this.offsetY) % this.gridCellSize; i < this.canvas.height; i += this.gridCellSize) {
+                    this.ctx.moveTo(0, i)
+                    this.ctx.lineTo(this.canvas.width, i);
+                }
+                this.ctx.stroke();
+            }
+
+            hideGrid() {
+                this.redraw()
+            }
+
+            zoomX(newScale, curpt) {
+
+                let oldScale = this.scale;
+                this.scale = Math.max(0.01, this.scale + newScale * 0.01);
+
+                this.offsetX += curpt.x * (this.scale - oldScale);
+                this.offsetY += curpt.y * (this.scale - oldScale);
+
+                this.redraw();
+            }
+
+            /* general handlers, calls to canvas */
+            pointerDown(e) {
+                this.beginPath(new Point(e.x, e.y));
+                this.psPicker.hide()
+            }
+
+            pointerUp(e) {
+                if (this.DC.dragging) {
+                    this.hideGrid()
+                } else {
+                    this.endPath()
+                }
+            }
+
+            pointerMoved(e) {
+                if (this.DC.dragging) {
+                    this.move(e.x - this.DC.dragX, e.y - this.DC.dragY)
+                } else {
+                    this.lineTo(new Point(e.x, e.y))
+                }
+                this.DC.dragX = e.x
+                this.DC.dragY = e.y
+            }
+
+        }
+
+        class PenSizePicker {
+            constructor(sizes, position, canvas) {
+                this.sizes = sizes;
+                this.firstTime = true;
+                this.position = position;
+                this.canvas = canvas;
+            }
+            changePosition(newPos) {
+                this.position = newPos;
+            }
+            showFor(pen) {
+                if (this.firstTime) {
+                    this.firstTime = false;
+                    return;
+                }
+                if (this.pp) {
+                    this.pp.remove()
+                }
+                let pp = document.createElement("div");
+                let cntr = document.createElement('center');
+                pp.appendChild(cntr);
+                pp.classList = "pen-settings";
+
+                this.sizes.forEach(sz => {
+                    let szdot = document.createElement("span");
+                    szdot.classList = `dot dot-${this.position}`;
+                    szdot.style.width = `${sz}px`;
+                    szdot.style.height = `${sz}px`;
+                    szdot.style.backgroundColor = `${pen.obj.color}`;
+                    szdot.addEventListener('click', e => this.penSizePicked(sz));
+                    cntr.appendChild(szdot);
+                })
+
+                let r = pen.ele.getBoundingClientRect()
+                if (this.position == "left") {
+                    pp.style.top = Math.round(r.top) + "px";
+                    pp.style.left = Math.round(r.left + r.width + 5) + "px";
+                } else {
+                    pp.style.top = Math.round(r.top + 45) + "px";
+                    pp.style.left = Math.round(r.left) + "px";
+                }
+                this.pp = pp;
+                document.body.appendChild(pp)
+            }
+            hide() {
+                if (this.pp)
+                    this.pp.remove()
+            }
+            penSizePicked(sz) {
+                this.canvas.pen.size = sz;
+                this.hide();
+            }
+        }
+
+        let canvases = [];
+        window.onload = function () {
+            let wboards = document.getElementsByClassName('whiteboard');
+            for (let i = 0; i < wboards.length; i++) {
+                const wboard = wboards[i];
+                canvases.push(
+                    new Canvas(wboard, {
+                        penColors: ['black', 'red', 'green', 'brown', 'orange', 'blue'],
+                        penSizes: [25, 20, 15, 10, 5, 2],
+                        toolBarPosition: 'left',
+                        background: 'white'
+                    })
+                );
+            }
+
+        }
+
+        function g(x) {
+            return document.getElementById(x);
+        }
+
+        if ('ontouchstart' in window) {
+            window.console.log = send;
+            window.console.error = send;
+        }
+
+        function send(x) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.open("GET", `/log${encodeURIComponent(" [" + x + "] ")}`, true);
+            xhttp.send();
+        }
+
+        function zup(e) {
+            if (e.key == 'z') {
+                canvas.zoomX(1, { x: 50, y: 50 });
+            } else if (e.key == 'd') {
+                canvas.beginPath({ x: 0, y: 0 })
+                canvas.lineTo({ x: 100, y: 100 })
+                canvas.endPath()
+            } else if (e.key == 't') {
+                test();
+            }
+        }
+
+        function timeIt(f, args) {
+            let start = new Date().getTime();
+            f(args);
+            let end = new Date().getTime();
+            return end - start;
+        }
+
+        function test() {
+            console.log(timeIt(genTestData, 10000));
+            console.log(timeIt(() => {
+                for (let i = 0; i < 100; i++) {
+                    canvas.move(-10, -10)
+                }
+            }))
+        }
+
+        function genTestData(nn) {
+            for (let i = 0; i < nn; i++) {
+                let n = Math.round(Math.random() * 5)
+                let bpt = new Point(Math.random() * nn, Math.random() * nn)
+                canvas.beginPath(bpt)
+                for (let j = 1; j < n; j++) {
+                    canvas.lineTo(new Point(bpt.x + Math.random() * 100, bpt.y + Math.random() * 100))
+                }
+                canvas.lineTo(bpt)
+                canvas.endPath();
+            }
+        }
+
+        document.addEventListener('keypress', zup)
+    </script>
+</head>
+
+<body>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <br/>
+    <hr/>
+    <br/>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <br/>
+    <hr/>
+    <br/>
+    <div class="whiteboard" style="width: 800px; height: 400px; border: solid 5px black"></div>
+    <div id="dbg" style="top: 0; left: 0px; position: absolute;"></div>
+</body>
+
+</html>
